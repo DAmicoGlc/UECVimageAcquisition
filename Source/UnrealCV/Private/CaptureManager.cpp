@@ -20,7 +20,6 @@ void FCaptureManager::AttachGTCaptureComponentToCamera(APawn* Pawn, TArray<AActo
 	CaptureComponentList.Add(Capturer);
 
 	// For each aCineCameraActor in the World add a Capturer in the CaptureComponentList
-	ACineCameraActor* CineCameraActor = nullptr;
 	for (AActor* Actor : ActorList)
 	{
 		if (Actor && Actor->IsA(ACineCameraActor::StaticClass()))
@@ -36,6 +35,17 @@ void FCaptureManager::AttachGTCaptureComponentToCamera(APawn* Pawn, TArray<AActo
 		RightEye->SetRelativeLocation(FVector(0, 40, 0));
 		// RightEye->AddLocalOffset(FVector(0, 40, 0)); // TODO: make this configurable
 		CaptureComponentList.Add(RightEye);
+
+		// For each aCineCameraActor in the World add a Capturer in the CaptureComponentList
+		for (AActor* Actor : ActorList)
+		{
+			if (Actor && Actor->IsA(ACineCameraActor::StaticClass()))
+			{
+				RightEye = UGTCaptureComponent::Create(Actor, Config.SupportedModes);
+				RightEye->SetRelativeLocation(FVector(0, 40, 0));
+				CaptureComponentList.Add(RightEye);
+			}
+		}
 	}
 }
 

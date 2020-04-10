@@ -111,7 +111,6 @@ FExecStatus FObjectCommandHandler::CurrentObjectHandler(const TArray<FString>& A
 		// The original version for the shooting game use CameraComponent
 		APawn* Pawn = FUE4CVServer::Get().GetPawn();
 		FVector StartLocation = Pawn->GetActorLocation();
-		// FRotator Direction = GetActorRotation();
 		FRotator Direction = Pawn->GetControlRotation();
 
 		FVector EndLocation = StartLocation + Direction.Vector() * 10000;

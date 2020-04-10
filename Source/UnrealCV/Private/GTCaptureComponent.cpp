@@ -275,7 +275,7 @@ void UGTCaptureComponent::SetFOVAngle(float FOV)
 FAsyncRecord* UGTCaptureComponent::Capture(FString Mode, FString InFilename)
 {
 	// Flush location and rotation
-
+	UE_LOG(LogUnrealCV, Error, TEXT("I am using CAPTURE"));
 	check(CaptureComponents.Num() != 0);
 	USceneCaptureComponent2D* CaptureComponent = CaptureComponents.FindRef(Mode);
 	if (CaptureComponent == nullptr)
@@ -300,6 +300,7 @@ TArray<uint8> UGTCaptureComponent::CapturePng(FString Mode)
 {
 	// Flush location and rotation
 	check(CaptureComponents.Num() != 0);
+	UE_LOG(LogUnrealCV, Error, TEXT("I am using CAPTURE PNG"));
 	USceneCaptureComponent2D* CaptureComponent = CaptureComponents.FindRef(Mode);
 
 	TArray<uint8> ImgData;
@@ -599,4 +600,79 @@ USceneCaptureComponent2D* UGTCaptureComponent::GetCaptureComponent(FString Mode)
 	check(CaptureComponents.Num() != 0);
 	USceneCaptureComponent2D* CaptureComponent = CaptureComponents.FindRef(Mode);
     return CaptureComponent;
+}
+
+
+/** Return the rotation of the component **/
+FRotator UGTCaptureComponent::GetCaptureComponentRotation()
+{
+	FRotator CameraRotation;
+	if (this->isPawn)
+	{
+		APawn* actualPawn = this->Pawn;
+      	CameraRotation = actualPawn->GetControlRotation();
+	}
+	else
+	{
+		AActor* actualActor = this->Actor;
+        CameraRotation = actualActor->GetActorRotation();
+	}
+
+	return CameraRotation;
+}
+
+/** Return the location of the component **/
+FVector UGTCaptureComponent::GetCaptureComponentLocation()
+{
+	FVector CameraLocation;
+	if (this->isPawn)
+	{
+		APawn* actualPawn = this->Pawn;
+		CameraLocation = actualPawn->GetActorLocation();
+	}
+	else
+	{
+		AActor* actualActor = this->Actor;
+		CameraLocation = actualActor->GetActorLocation();
+	}
+
+	return CameraLocation;
+}
+
+/** Set the rotation of the component **/
+void UGTCaptureComponent::SetCaptureComponentRotation(FRotator newRotation) 
+{
+	if (this->isPawn)
+	{
+		APawn* actualPawn = this->Pawn;
+		AController* Controller = actualPawn->GetController();
+		Controller->ClientSetRotation(newRotation);
+	}
+	else 
+	{
+		AActor* actualActor = this->Actor;
+		actualActor->SetActorRotation(newRotation);
+	}
+}
+/** Set the location of the component **/
+void UGTCaptureComponent::SetCaptureComponentLocation(FVector newLocation) {
+	bool Success;
+	bool Sweep = false;
+	if (this->isPawn)
+	{
+		APawn* actualPawn = this->Pawn;
+		Success = actualPawn->SetActorLocation(newLocation, Sweep, NULL, ETeleportType::TeleportPhysics);
+	}
+	else 
+	{
+		AActor* actualActor = this->Actor;
+		Success = actualActor->SetActorLocation(newLocation, Sweep, NULL, ETeleportType::TeleportPhysics);
+	}
+}
+
+
+/** Check if it is a Pawn or not **/
+bool UGTCaptureComponent::ComponentIsPawn()
+{
+	return this->isPawn;
 }

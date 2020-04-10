@@ -24,38 +24,52 @@ class UNREALCV_API UGTCaptureComponent : public USceneComponent // , public FTic
 	GENERATED_BODY()
 private:
 	UGTCaptureComponent();
-	APawn* Pawn;
-	AActor* Actor;
-
-	bool isPawn;
 
 	TArray<uint8> NpySerialization(TArray<FColor> ImageData, int32 Width, int32 Height, int32 Channel);
 	TArray<uint8> NpySerialization(TArray<FFloat16Color> ImageData, int32 Width, int32 Height, int32 Channel);
 
-public:
+public:	
+	bool isPawn;
+	APawn* Pawn;
+	AActor* Actor;
+	
 	static UGTCaptureComponent* Create(APawn* Pawn, TArray<FString> Modes);
 	static UGTCaptureComponent* Create(AActor* InActor, TArray<FString> Modes);
-
+	
 	static UMaterial* GetMaterial(FString ModeName);
-
+	
 	// virtual void Tick(float DeltaTime) override; // TODO
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override; // TODO
-
+	
 	void SetFOVAngle(float FOV);
-
+	
 	/** Save image to a file */
 	FAsyncRecord* Capture(FString Mode, FString Filename);
-
+	
 	/** Read binary data in png format */
 	TArray<uint8> CapturePng(FString Mode);
-
+	
 	/** Read binary data in uncompressed numpy array */
 	TArray<uint8> CaptureNpyUint8(FString Mode, int32 Channels);
-
+	
 	/** Read binary data in uncompressed numpy array */
 	TArray<uint8> CaptureNpyFloat16(FString Mode, int32 Channels);
-
+	
 	USceneCaptureComponent2D* GetCaptureComponent(FString Mode);
+
+	/** Return the rotation of the component **/
+	FRotator GetCaptureComponentRotation();
+	/** Return the location of the component **/
+	FVector GetCaptureComponentLocation();
+
+	/** Set the rotation of the component **/
+	void SetCaptureComponentRotation(FRotator newRotation);
+	/** Set the location of the component **/
+	void SetCaptureComponentLocation(FVector newLocation);
+
+	/** Check if it is a Pawn or not **/
+	bool ComponentIsPawn();
+
 
 private:
 	const bool bIsTicking = true;

@@ -28,10 +28,10 @@ public:
 	/** vset /camera/[id]/pose */
 	FExecStatus	SetCameraPose(const TArray<FString>& Args);
 
-	/** vget /actor/rotation, follow the concept of actor in RL */
-	FExecStatus GetActorRotation(const TArray<FString>& Args);
-	/** vget /actor/location */
-	FExecStatus GetActorLocation(const TArray<FString>& Args);
+	// /** vget /actor/rotation, follow the concept of actor in RL */
+	// FExecStatus GetActorRotation(const TArray<FString>& Args);
+	// /** vget /actor/location */
+	// FExecStatus GetActorLocation(const TArray<FString>& Args);
 
 	/** vget /camera/view */
 	FExecStatus GetScreenshot(const TArray<FString>& Args);
