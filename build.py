@@ -4,7 +4,6 @@
 import argparse
 from unrealcv.automation import UE4Automation
 import os
-import shutil
 
 def main():
     # Parse arguments
@@ -57,30 +56,6 @@ def main():
         if need_install:
             ue4.install(plugin_folder = abs_output_folder, overwrite = True)
 
-
-        #######################################################################
-        # Delete old plugin
-        dir_path = '/home/zed/UnrealEngine/Engine/Plugins/UnrealCV'
-
-        try:
-            shutil.rmtree(dir_path)
-        except OSError as e:
-            print("Error: %s : %s" % (dir_path, e.strerror))
-
-        # Source path  
-        source = '/home/zed/UECVimageAcquisition/Plugins/UnrealCV'
-  
-        # Destination path  
-        destination = dir_path
-        
-        try:
-            # Move the content of  
-            # source to destination
-            dest = shutil.move(source, destination)
-            print("New Plugin Folder moved in: %s" %dest)
-        except OSError as e:
-            print("Error: %s : %s" % (dest, e.strerror))
-        ########################################################################
     elif descriptor_file.endswith('.uproject'):
         project_name = os.path.basename(descriptor_file).split('.')[0]
         if not output_folder:
