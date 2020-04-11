@@ -61,6 +61,8 @@ public:
 	FRotator GetCaptureComponentRotation();
 	/** Return the location of the component **/
 	FVector GetCaptureComponentLocation();
+	/** Return the forward vector of the component **/
+	FVector GetCaptureComponentForwardVector();
 
 	/** Set the rotation of the component **/
 	void SetCaptureComponentRotation(FRotator newRotation);

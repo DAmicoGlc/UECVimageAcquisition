@@ -13,6 +13,10 @@
 #include "ScreenCapture.h"
 #include "Serialization.h"
 
+#include "Engine/World.h"
+#include "Engine/EngineTypes.h"
+#include "DrawDebugHelpers.h"
+
 FString GetDiskFilename(FString Filename)
 {
 	const FString Dir = FPlatformProcess::BaseDir(); // TODO: Change this to screen capture folder
@@ -152,6 +156,13 @@ void FCameraCommandHandler::RegisterCommands()
 		return FExecStatus::Binary(Data);
 	});
 	CommandDispatcher->BindCommand("vget /camera/[uint]/lit_depth_normal npy", Cmd, Help);
+	
+	// LIDAR Pointcloud command. TODO: Attach lidar to different class?
+	// Syntax: vget /camera/id/lidar2D num_measures range <debug>			[debug=1 to activate debug lidar lines]
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetLidar);
+	Help = "Get actor Lidar Pointcloud";
+	CommandDispatcher->BindCommand("vget /camera/[uint]/lidar2D [uint] [float] [uint]", Cmd, Help);
+	
 
 	// TODO: object_mask will be handled differently
 }
@@ -536,4 +547,65 @@ FExecStatus FCameraCommandHandler::GetNpyBinaryFloat16(const TArray<FString>& Ar
 {
 	TArray<uint8> Data = GetNpyBinaryFloat16Data(Args, ViewMode, Channels);
 	return FExecStatus::Binary(Data);
+}
+
+
+FExecStatus FCameraCommandHandler::GetLidar(const TArray<FString>& Args)
+{
+	if ((Args.Num() == 3) || (Args.Num() == 4)) {	// ID, measures_per_rotation, sensor range
+		bool debug = false;
+		int32 CameraId = FCString::Atoi(*Args[0]); 
+		int32 nMeasures = FCString::Atof(*Args[1]);
+    	float range = FCString::Atof(*Args[2]);
+		if (Args.Num() == 4) {
+			debug = (FCString::Atoi(*Args[3]) == 1);
+		}
+		
+		bool bIsMatinee = false;
+		
+		UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(CameraId);
+		if (GTCapturer == nullptr)
+		{
+			return FExecStatus::Error(FString::Printf(TEXT("Invalid camera id %d"), CameraId));
+		}
+
+
+		FRotator CameraRotation = GTCapturer->GetCaptureComponentRotation();
+		FVector StartLocation = GTCapturer->GetCaptureComponentLocation();
+		FVector StartLocationOffset;
+		FVector EndLocation;
+		FVector ForwardVector = GTCapturer->GetCaptureComponentForwardVector();
+		FHitResult* Hit = new FHitResult[nMeasures];
+		FCollisionQueryParams CollisionParams;
+
+		FString Message = "";
+
+		FVector RotatedVector0 = ForwardVector.RotateAngleAxis(CameraRotation.Yaw, FVector(0, 0, 1));
+		FVector RotatedVector;
+
+		float sensor_angle = 360;
+		float angle;
+		float min_range = 250;
+		
+		FString sensor_message;
+
+		for (int32 i = 0; i < nMeasures; i++) {
+
+			angle = -.5*sensor_angle + sensor_angle / (nMeasures - 1) * i;
+			RotatedVector = RotatedVector0.RotateAngleAxis(angle, FVector(0, 0, 1));
+			StartLocationOffset = StartLocation + RotatedVector * min_range;
+			EndLocation = StartLocation + RotatedVector * range;
+			this->GetWorld()->LineTraceSingleByChannel(Hit[i], StartLocationOffset, EndLocation, ECC_Visibility, CollisionParams);
+			if (debug) {
+				DrawDebugLine(this->GetWorld(), StartLocationOffset, EndLocation, FColor::Green, false, 1, 0, 5);
+			}
+			sensor_message = FString::Printf(TEXT("%.3f, %.3f, %.3f, %.3f\n"), Hit[i].Location.X, Hit[i].Location.Y, Hit[i].Location.Z, Hit[i].Distance);
+			Message = Message.Append(sensor_message);
+		}
+
+    	return FExecStatus::OK(Message);
+
+	}
+	return FExecStatus::Error("Number of arguments incorrect");
+
 }

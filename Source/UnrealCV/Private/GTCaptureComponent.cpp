@@ -639,6 +639,24 @@ FVector UGTCaptureComponent::GetCaptureComponentLocation()
 	return CameraLocation;
 }
 
+/** Return the location of the component **/
+FVector UGTCaptureComponent::GetCaptureComponentForwardVector()
+{
+	FVector ForwardVector;
+	if (this->isPawn)
+	{
+		APawn* actualPawn = this->Pawn;
+		ForwardVector = actualPawn->GetActorForwardVector();
+	}
+	else
+	{
+		AActor* actualActor = this->Actor;
+		ForwardVector = actualActor->GetActorForwardVector();
+	}
+
+	return ForwardVector;
+}
+
 /** Set the rotation of the component **/
 void UGTCaptureComponent::SetCaptureComponentRotation(FRotator newRotation) 
 {

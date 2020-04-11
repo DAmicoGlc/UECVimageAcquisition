@@ -70,4 +70,7 @@ public:
 
 	/** Get response with raw binary data as an uncompressed numpy array */
 	FExecStatus GetNpyBinaryFloat16(const TArray<FString>& Args, const FString& ViewMode, int32 Channels);
+	
+	/** Get Lidar Point Cloud */
+	FExecStatus GetLidar(const TArray<FString>& Args);
 };
