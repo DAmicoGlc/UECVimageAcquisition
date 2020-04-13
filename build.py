@@ -68,7 +68,7 @@ def main():
             print("Error: %s : %s" % (dir_path, e.strerror))
 
         # Source path  
-        source = '/home/zed/UECVimageAcquisition/Plugins/UnrealCV'
+        source = '/home/zed/unrealcv/Plugins/UnrealCV'
   
         # Destination path  
         destination = dir_path
