@@ -1,0 +1,5 @@
+
+# Untrack venv and vs
+myEnv/
+.vs/
+UnrealCv
