@@ -13,6 +13,9 @@ public:
 
 	/** vset /action/game/resume */
 	FExecStatus ResumeGame(const TArray<FString>& Args);
+	
+	/** vset /action/game/restart */
+	FExecStatus RestartLevel(const TArray<FString>& Args);
 
 	/** vset /action/game/level */
 	FExecStatus OpenLevel(const TArray<FString>& Args);
@@ -28,5 +31,8 @@ public:
 
 	/** vset /action/keyboard [key_name] [delta] */
 	FExecStatus Keyboard(const TArray<FString>& Args);
+	
+	/** vget /action/collision **/
+	FExecStatus GetPawnCollision(const TArray<FString>& Args);
 	TFunction<void(void)> GetReleaseKey(FKey Key);
 };

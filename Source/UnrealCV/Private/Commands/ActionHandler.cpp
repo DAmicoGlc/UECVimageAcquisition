@@ -14,6 +14,10 @@ void FActionCommandHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FActionCommandHandler::OpenLevel);
 	Help = "Open level";
 	CommandDispatcher->BindCommand("vset /action/game/level [str]", Cmd, Help);
+	
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FActionCommandHandler::RestartLevel);
+	Help = "Restart level";
+	CommandDispatcher->BindCommand("vset /action/game/restart", Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FActionCommandHandler::EnableInput);
 	Help = "Enable input";
@@ -37,12 +41,23 @@ void FActionCommandHandler::RegisterCommands()
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FActionCommandHandler::Keyboard);
 	Help = "Send a keyboard action to the game";
 	CommandDispatcher->BindCommand("vset /action/keyboard [str] [float]", Cmd, Help);
+	
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FActionCommandHandler::GetPawnCollision);
+	Help = "Get Collision information";
+	CommandDispatcher->BindCommand("vget /action/collision", Cmd, Help);
 }
 
 FExecStatus FActionCommandHandler::PauseGame(const TArray<FString>& Args)
 {
 	APlayerController* PlayerController = this->GetWorld()->GetFirstPlayerController();
 	PlayerController->Pause();
+	return FExecStatus::OK();
+}
+
+FExecStatus FActionCommandHandler::RestartLevel(const TArray<FString>& Args)
+{
+	APlayerController* PlayerController = this->GetWorld()->GetFirstPlayerController();
+	PlayerController->RestartLevel();
 	return FExecStatus::OK();
 }
 
@@ -122,4 +137,48 @@ FExecStatus FActionCommandHandler::Keyboard(const TArray<FString>& Args)
 	World->GetTimerManager().SetTimer(TimerHandle, GetReleaseKey(Key), DeltaTime, false);
 
 	return FExecStatus::OK();
+}
+
+FExecStatus FActionCommandHandler::GetPawnCollision(const TArray<FString>& Args)
+{
+	if (Args.Num() != 0)
+	{
+		return FExecStatus::InvalidArgument;
+	}
+	
+	//float X = FCString::Atof(*Args[0]);
+	//float Y = FCString::Atof(*Args[1]);
+	//float Z = FCString::Atof(*Args[2]);
+	
+	FVector ActorLocation;
+	FVector OutPoint;
+	UPrimitiveComponent* OutComponent;
+	float distance = 10000;
+	float distance_temp;
+	AActor* ClosestActor;
+	FVector ClosestPoint;
+
+	UWorld* World = this->GetWorld();
+	APlayerController* PlayerController = World->GetFirstPlayerController();
+	APawn* Pawn = PlayerController->GetPawn();
+	FVector PlayerLocation = Pawn->GetActorLocation();
+	
+    for (AActor* Actor : World->GetCurrentLevel()->Actors){
+		distance_temp = Actor->ActorGetDistanceToCollision(PlayerLocation, ECC_Visibility, OutPoint, &OutComponent);
+		if ((distance_temp < distance) && (distance_temp > 50)) {
+			distance = distance_temp;
+			ClosestActor = Actor;
+			ClosestPoint = OutPoint;
+		}
+	}
+	
+	//CheckFromPoint.X += X;
+	//CheckFromPoint.Y += Y;
+	//CheckFromPoint.Z += Z;
+	distance = Pawn->ActorGetDistanceToCollision(ClosestPoint, ECC_Visibility, OutPoint, &OutComponent);
+	
+	FString Message = FString::Printf(TEXT("%.3f %.3f %.3f %.3f"), OutPoint.X, OutPoint.Y, OutPoint.Z, distance);
+	DrawDebugLine(this->GetWorld(), ClosestPoint, OutPoint, FColor::Green, false, 1, 0, 5);
+
+	return FExecStatus::OK(Message);
 }

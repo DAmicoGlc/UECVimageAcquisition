@@ -12,7 +12,7 @@ if len(sys.argv) == 2:
 else:
     debug_lidar = True
     
-n_measures = 100
+n_measures = 20
 range = 10000
 
 if debug_lidar:
