@@ -1,4 +1,5 @@
 #include "UnrealCVPrivate.h"
+#include "Camera/CameraActor.h"
 #include "CineCameraActor.h"
 #include "UE4CVServer.h"
 #include "CaptureManager.h"
@@ -11,21 +12,29 @@
 void FCaptureManager::AttachGTCaptureComponentToCamera(APawn* Pawn, TArray<AActor*> ActorList)
 {
 	FServerConfig& Config = FUE4CVServer::Get().Config;
-	// TODO: Only support one camera at the beginning
-	// TODO: Make this automatic from material loader.
 
 	CaptureComponentList.Empty();
 
-	UGTCaptureComponent* Capturer = UGTCaptureComponent::Create(Pawn, Config.SupportedModes);
+	AActor* MyActor = dynamic_cast<AActor*>(Pawn);
+
+	UGTCaptureComponent* Capturer = UGTCaptureComponent::Create(MyActor, Config.SupportedModes);
 	CaptureComponentList.Add(Capturer);
 
-	// For each aCineCameraActor in the World add a Capturer in the CaptureComponentList
+	// For each aCineCameraActor or aCameraActor in the World add a Capturer in the CaptureComponentList
 	for (AActor* Actor : ActorList)
 	{
 		if (Actor && Actor->IsA(ACineCameraActor::StaticClass()))
 		{
 			Capturer = UGTCaptureComponent::Create(Actor, Config.SupportedModes);
 			CaptureComponentList.Add(Capturer);
+		}
+		else 
+		{
+			if (Actor && Actor->IsA(ACameraActor::StaticClass()))
+			{
+				Capturer = UGTCaptureComponent::Create(Actor, Config.SupportedModes);
+				CaptureComponentList.Add(Capturer);
+			}
 		}
 	}
 
@@ -36,7 +45,7 @@ void FCaptureManager::AttachGTCaptureComponentToCamera(APawn* Pawn, TArray<AActo
 		// RightEye->AddLocalOffset(FVector(0, 40, 0)); // TODO: make this configurable
 		CaptureComponentList.Add(RightEye);
 
-		// For each aCineCameraActor in the World add a Capturer in the CaptureComponentList
+		// For each aCineCameraActor or aCameraActor in the World add a Capturer in the CaptureComponentList
 		for (AActor* Actor : ActorList)
 		{
 			if (Actor && Actor->IsA(ACineCameraActor::StaticClass()))
@@ -44,6 +53,15 @@ void FCaptureManager::AttachGTCaptureComponentToCamera(APawn* Pawn, TArray<AActo
 				RightEye = UGTCaptureComponent::Create(Actor, Config.SupportedModes);
 				RightEye->SetRelativeLocation(FVector(0, 40, 0));
 				CaptureComponentList.Add(RightEye);
+			}
+			else 
+			{
+				if (Actor && Actor->IsA(ACameraActor::StaticClass()))
+				{
+					RightEye = UGTCaptureComponent::Create(Actor, Config.SupportedModes);
+					RightEye->SetRelativeLocation(FVector(0, 40, 0));
+					CaptureComponentList.Add(RightEye);
+				}
 			}
 		}
 	}

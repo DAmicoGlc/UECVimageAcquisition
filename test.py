@@ -25,37 +25,60 @@ else:
     print ("Status: ")
     print (res)
 
-    # Get initial Pawn Pose
-    pawnPose = getPose(0)
+    res = client.request('vget /cameraComponent/0/0/normal png')
+    img_1 = read_png(res)
 
-    # Get initial Camera Pose
-    cameraPose = getPose(1)
+    res = client.request('vget /cameraComponent/0/1/normal png')
+    img_2 = read_png(res)
 
-    # Compute difference between Pose
-    diffPose = np.subtract(pawnPose, cameraPose)
+    res = client.request('vget /cameraComponent/0/2/normal png')
+    img_3 = read_png(res)
 
-    fileRes = []
-    for i in range(0, 5):
-        time.sleep(2)
+    res = client.request('vget /cameraComponent/0/3/normal png')
+    img_4 = read_png(res)
+
+
+    f, axarr = plt.subplots(2,2)
+    axarr[0,0].imshow(img_1)
+    axarr[0,1].imshow(img_2)
+    axarr[1,0].imshow(img_3)
+    axarr[1,1].imshow(img_4)
+
+    plt.show()
+
+    # res = client.request('vget /camera/1/lit image2.png')
+
+    ## Get initial Pawn Pose
+    #pawnPose = getPose(0)
+
+    ## Get initial Camera Pose
+    #cameraPose = getPose(1)
+
+    ## Compute difference between Pose
+    #diffPose = np.subtract(pawnPose, cameraPose)
+
+    #fileRes = []
+    #for i in range(0, 5):
+    #    time.sleep(2)
         
-        # Get new Pawn pose
-        pawnPose = getPose(0)
+    #    # Get new Pawn pose
+    #    pawnPose = getPose(0)
 
-        # Move Camera to pawn pose
-        cameraPose = np.subtract(pawnPose, diffPose)
+    #    # Move Camera to pawn pose
+    #    cameraPose = np.subtract(pawnPose, diffPose)
 
-        listPose = []
-        [ listPose.append(str(item)) for item in cameraPose]
-        strPose = ' '.join(listPose)
+    #    listPose = []
+    #    [ listPose.append(str(item)) for item in cameraPose]
+    #    strPose = ' '.join(listPose)
         
-        res = client.request('vset /camera/1/pose ' + strPose)
-        print("New camera pose: " + strPose)
-        print(res)
+    #    res = client.request('vset /camera/1/pose ' + strPose)
+    #    print("New camera pose: " + strPose)
+    #    print(res)
 
-        if res == 'ok':
-            res = client.request('vget /camera/1/normal image' + str(i) + '.png')
-        else:
-            print("Error: " + str(res))
-            break
+    #    if res == 'ok':
+    #        res = client.request('vget /camera/1/normal image' + str(i) + '.png')
+    #    else:
+    #        print("Error: " + str(res))
+    #        break
 
     client.disconnect()

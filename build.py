@@ -4,6 +4,7 @@
 import argparse
 from unrealcv.automation import UE4Automation
 import os
+import shutil
 
 def main():
     # Parse arguments
@@ -47,7 +48,7 @@ def main():
     abs_descriptor_file = os.path.abspath(descriptor_file)
     if descriptor_file.endswith('.uplugin'):
         if not output_folder:
-            output_folder = 'UnrealCV'
+            output_folder = 'Plugins/UnrealCV'
         abs_output_folder = os.path.abspath(output_folder)
 
         ue4.build_plugin(abs_descriptor_file, abs_output_folder, args.overwrite)
@@ -55,7 +56,15 @@ def main():
         # Install the plugin if requested
         if need_install:
             ue4.install(plugin_folder = abs_output_folder, overwrite = True)
+    
+        dest='C:\\Program Files\\Epic Games\\UE_4.24\\Engine\\Plugins\\UnrealCV'
 
+        try:
+            shutil.rmtree(dest)
+            shutil.move(abs_output_folder, dest)
+        except (OSError, IOError) as e:
+            print('Error deleting or moving %s to %s: %s' % (abs_output_folder, dest, e))
+        
 
     elif descriptor_file.endswith('.uproject'):
         project_name = os.path.basename(descriptor_file).split('.')[0]

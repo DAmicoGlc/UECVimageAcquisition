@@ -36,6 +36,87 @@ void FCameraCommandHandler::RegisterCommands()
 	FDispatcherDelegate Cmd;
 	FString Help;
 
+	//********************************************* MY COMMAND *********************************************//
+
+	// CAMERA COMPONENTS
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentViewMode);
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/[str]", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentViewMode);
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/[str] [str]", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentLitViewMode);
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/lit", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentLitViewMode);
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/lit [str]", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Help = "Return raw binary image data, instead of the image filename";
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetCameraComponentPngBinary(Args, TEXT("Lit"), TEXT("CameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/lit png", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetCameraComponentPngBinary(Args, TEXT("depth"), TEXT("CameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/depth png", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetCameraComponentPngBinary(Args, TEXT("normal"), TEXT("CameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/normal png", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryUint8(Args, TEXT("lit"), 4, TEXT("CameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/lit npy", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryUint8(Args, TEXT("normal"), 3, TEXT("CameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/normal npy", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryFloat16(Args, TEXT("depth"), 1, TEXT("CameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/depth npy", Cmd, Help);
+
+ 	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryFloat16(Args, TEXT("plane_depth"), 1, TEXT("CameraComponent")); });
+ 	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/plane_depth npy", Cmd, Help);
+
+ 	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryFloat16(Args, TEXT("vis_depth"), 1, TEXT("CameraComponent")); });
+ 	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/[uint]/vis_depth npy", Cmd, Help);
+
+
+	// CINE CAMERA COMPONENTS
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentViewMode);
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/[str]", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentViewMode);
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/[str] [str]", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentLitViewMode);
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/lit", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentLitViewMode);
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/lit [str]", Cmd, "Get snapshot from camera, the third parameter is optional");
+
+	Help = "Return raw binary image data, instead of the image filename";
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetCameraComponentPngBinary(Args, TEXT("Lit"), TEXT("CineCameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/lit png", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetCameraComponentPngBinary(Args, TEXT("depth"), TEXT("CineCameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/depth png", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetCameraComponentPngBinary(Args, TEXT("normal"), TEXT("CineCameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/normal png", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryUint8(Args, TEXT("lit"), 4, TEXT("CineCameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/lit npy", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryUint8(Args, TEXT("normal"), 3, TEXT("CineCameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/normal npy", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryFloat16(Args, TEXT("depth"), 1, TEXT("CineCameraComponent")); });
+	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/depth npy", Cmd, Help);
+
+ 	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryFloat16(Args, TEXT("plane_depth"), 1, TEXT("CineCameraComponent")); });
+ 	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/plane_depth npy", Cmd, Help);
+
+ 	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetCameraComponentNpyBinaryFloat16(Args, TEXT("vis_depth"), 1, TEXT("CineCameraComponent")); });
+ 	CommandDispatcher->BindCommand("vget /cineCameraComponent/[uint]/[uint]/vis_depth npy", Cmd, Help);
+
+	//********************************************* MY COMMAND END *********************************************//
+
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraViewMode);
 	CommandDispatcher->BindCommand("vget /camera/[uint]/[str]", Cmd, "Get snapshot from camera, the third parameter is optional");
 
@@ -108,16 +189,9 @@ void FCameraCommandHandler::RegisterCommands()
 	Help = "Get current ViewMode";
 	CommandDispatcher->BindCommand("vget /viewmode", Cmd, Help);
 
-	// Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetActorLocation);
-	// Help = "Get actor location [x, y, z]";
-	// CommandDispatcher->BindCommand("vget /actor/location", Cmd, Help);
-
-	// Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetActorRotation);
-	// Help = "Get actor rotation [pitch, yaw, roll]";
-	// CommandDispatcher->BindCommand("vget /actor/rotation", Cmd, Help);
 
 	Help = "Return raw binary image data, instead of the image filename";
-	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetPngBinary(Args, TEXT("lit")); });
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetPngBinary(Args, TEXT("Lit")); });
 	CommandDispatcher->BindCommand("vget /camera/[uint]/lit png", Cmd, Help);
 
 	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return GetPngBinary(Args, TEXT("depth")); });
@@ -484,7 +558,7 @@ FExecStatus FCameraCommandHandler::GetScreenshot(const TArray<FString>& Args)
 FExecStatus FCameraCommandHandler::GetPngBinary(const TArray<FString>& Args, const FString& ViewMode)
 {
 	int32 CameraId = FCString::Atoi(*Args[0]);
-
+	UE_LOG(LogUnrealCV, Error, TEXT("Component Camera GetPngBinary in mode %s"), *ViewMode);
 	UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(CameraId);
 	if (GTCapturer == nullptr)
 	{
@@ -494,7 +568,6 @@ FExecStatus FCameraCommandHandler::GetPngBinary(const TArray<FString>& Args, con
 	TArray<uint8> ImgData = GTCapturer->CapturePng(ViewMode);
 	return FExecStatus::Binary(ImgData);
 }
-
 
 TArray<uint8> FCameraCommandHandler::GetNpyBinaryUint8Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels)
 {
@@ -537,3 +610,248 @@ FExecStatus FCameraCommandHandler::GetNpyBinaryFloat16(const TArray<FString>& Ar
 	TArray<uint8> Data = GetNpyBinaryFloat16Data(Args, ViewMode, Channels);
 	return FExecStatus::Binary(Data);
 }
+
+//************************************************* MY FUNCTION *************************************************//
+
+FExecStatus FCameraCommandHandler::GetCameraComponentLitViewMode(const TArray<FString>& Args)
+{
+	if (Args.Num() <= 4)
+	{
+		// For this viewmode, The post-effect material needs to be explictly cleared
+		FPlayerViewMode::Get().Lit();
+
+		TArray<FString> ExtraArgs(Args);
+		ExtraArgs.Insert(TEXT("lit"), 2);
+		return GetCameraComponentViewMode(ExtraArgs);
+	}
+	return FExecStatus::InvalidArgument;
+}
+
+FExecStatus FCameraCommandHandler::GetCameraComponentViewMode(const TArray<FString>& Args)
+{
+	if (Args.Num() <= 4) // The first is camera id, the second is ViewMode
+	{
+		int32 ActorId = FCString::Atoi(*Args[0]);
+		int32 CameraId = FCString::Atoi(*Args[1]);
+		FString ViewMode = Args[2];
+
+		FString Filename;
+		if (Args.Num() == 4)
+		{
+			Filename = Args[3];
+		}
+		else
+		{
+			Filename = GenerateSeqFilename();
+		}
+
+		UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(ActorId);
+		if (GTCapturer == nullptr)
+		{
+			return FExecStatus::Error(FString::Printf(TEXT("Invalid Actor id %d"), ActorId));
+		}
+
+		FAsyncRecord* AsyncRecord = GTCapturer->CameraComponentCapture(ViewMode, Filename, CameraId);
+		if (AsyncRecord == nullptr)
+		{
+			return FExecStatus::Error(FString::Printf(TEXT("Unrecognized capture mode %s"), *ViewMode));
+		}
+
+		FPromiseDelegate PromiseDelegate = FPromiseDelegate::CreateLambda([Filename, AsyncRecord]()
+		{
+			if (AsyncRecord->bIsCompleted)
+			{
+				AsyncRecord->Destory();
+				return FExecStatus::OK(GetDiskFilename(Filename));
+			}
+			else
+			{
+				return FExecStatus::Pending();
+			}
+		});
+		FString Message = FString::Printf(TEXT("File will be saved to %s"), *Filename);
+		return FExecStatus::AsyncQuery(FPromise(PromiseDelegate));
+		// The filename here is just for message, not the fullname on the disk, because we can not know that due to sandbox issue.
+	}
+	return FExecStatus::InvalidArgument;
+}
+
+FExecStatus FCameraCommandHandler::GetCineCameraComponentLitViewMode(const TArray<FString>& Args)
+{
+	if (Args.Num() <= 4)
+	{
+		// For this viewmode, The post-effect material needs to be explictly cleared
+		FPlayerViewMode::Get().Lit();
+
+		TArray<FString> ExtraArgs(Args);
+		ExtraArgs.Insert(TEXT("lit"), 2);
+		return GetCineCameraComponentViewMode(ExtraArgs);
+	}
+	return FExecStatus::InvalidArgument;
+}
+
+FExecStatus FCameraCommandHandler::GetCineCameraComponentViewMode(const TArray<FString>& Args)
+{
+	if (Args.Num() <= 4) // The first is camera id, the second is ViewMode
+	{
+		int32 ActorId = FCString::Atoi(*Args[0]);
+		int32 CameraId = FCString::Atoi(*Args[1]);
+		FString ViewMode = Args[2];
+
+		FString Filename;
+		if (Args.Num() == 4)
+		{
+			Filename = Args[3];
+		}
+		else
+		{
+			Filename = GenerateSeqFilename();
+		}
+
+		UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(ActorId);
+		if (GTCapturer == nullptr)
+		{
+			return FExecStatus::Error(FString::Printf(TEXT("Invalid Actor id %d"), ActorId));
+		}
+
+		FAsyncRecord* AsyncRecord = GTCapturer->CineCameraComponentCapture(ViewMode, Filename, CameraId);
+		if (AsyncRecord == nullptr)
+		{
+			return FExecStatus::Error(FString::Printf(TEXT("Unrecognized capture mode %s"), *ViewMode));
+		}
+
+		FPromiseDelegate PromiseDelegate = FPromiseDelegate::CreateLambda([Filename, AsyncRecord]()
+		{
+			if (AsyncRecord->bIsCompleted)
+			{
+				AsyncRecord->Destory();
+				return FExecStatus::OK(GetDiskFilename(Filename));
+			}
+			else
+			{
+				return FExecStatus::Pending();
+			}
+		});
+		FString Message = FString::Printf(TEXT("File will be saved to %s"), *Filename);
+		return FExecStatus::AsyncQuery(FPromise(PromiseDelegate));
+		// The filename here is just for message, not the fullname on the disk, because we can not know that due to sandbox issue.
+	}
+	return FExecStatus::InvalidArgument;
+}
+
+FExecStatus FCameraCommandHandler::GetCameraComponentPngBinary(const TArray<FString>& Args, const FString& ViewMode, const FString& ComponentType)
+{
+	int32 ActorId = FCString::Atoi(*Args[0]);
+	int32 CameraId = FCString::Atoi(*Args[1]);
+
+	UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(ActorId);
+	if (GTCapturer == nullptr)
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid Actor id %d"), ActorId));
+	}
+
+	TArray<uint8> ImgData;
+	if (ComponentType.Equals(TEXT("CameraComponent")))
+	{
+		ImgData = GTCapturer->CameraComponentCapturePng(ViewMode, CameraId);
+	}
+	else if (ComponentType.Equals(TEXT("CineCameraComponent"))) 
+	{
+		ImgData = GTCapturer->CineCameraComponentCapturePng(ViewMode, CameraId);
+	}
+	else
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid Component type %s"), *ComponentType));
+	}
+
+	if (ImgData.Num() == 0) 
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid Component type %s or index %d"), *ComponentType, CameraId));
+	}
+	
+	return FExecStatus::Binary(ImgData);
+}
+
+TArray<uint8> FCameraCommandHandler::GetCameraComponentNpyBinaryUint8Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType)
+{
+	int32 ActorId = FCString::Atoi(*Args[0]);
+	int32 CameraId = FCString::Atoi(*Args[1]);
+
+	UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(ActorId);
+	if (GTCapturer == nullptr)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Invalid Actor id %d"), ActorId);
+		return TArray<uint8>();
+	}
+
+	TArray<uint8> ImgData;
+	if (ComponentType.Equals(TEXT("CameraComponent")))
+	{
+		ImgData = GTCapturer->CameraComponentCaptureNpyUint8(ViewMode, Channels, CameraId);
+	}
+	else if (ComponentType.Equals(TEXT("CineCameraComponent"))) 
+	{
+		ImgData = GTCapturer->CineCameraComponentCaptureNpyUint8(ViewMode, Channels, CameraId);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Invalid Component type %s"), *ComponentType);
+		return TArray<uint8>();
+	}
+
+	return ImgData;
+}
+
+FExecStatus FCameraCommandHandler::GetCameraComponentNpyBinaryUint8(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType)
+{
+	int32 CameraId = FCString::Atoi(*Args[1]);
+	TArray<uint8> Data = GetCameraComponentNpyBinaryUint8Data(Args, ViewMode, Channels, ComponentType);
+	if (Data.Num() == 0) 
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid Component type %s or index %d"), *ComponentType, CameraId));
+	}
+	return FExecStatus::Binary(Data);
+}
+
+TArray<uint8> FCameraCommandHandler::GetCameraComponentNpyBinaryFloat16Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType)
+{
+	int32 ActorId = FCString::Atoi(*Args[0]);
+	int32 CameraId = FCString::Atoi(*Args[1]);
+
+	UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(ActorId);
+	if (GTCapturer == nullptr)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Invalid Actor id %d"), ActorId);
+		return TArray<uint8>();
+	}
+
+	TArray<uint8> ImgData;
+	if (ComponentType.Equals(TEXT("CameraComponent")))
+	{
+		ImgData = GTCapturer->CameraComponentCaptureNpyFloat16(ViewMode, Channels, CameraId);
+	}
+	else if (ComponentType.Equals(TEXT("CineCameraComponent"))) 
+	{
+		ImgData = GTCapturer->CineCameraComponentCaptureNpyFloat16(ViewMode, Channels, CameraId);
+	}
+	else
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Invalid Component type %s"), *ComponentType);
+		return TArray<uint8>();
+	}
+
+	return ImgData;
+}
+
+FExecStatus FCameraCommandHandler::GetCameraComponentNpyBinaryFloat16(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType)
+{
+	int32 CameraId = FCString::Atoi(*Args[1]);
+	TArray<uint8> Data = GetCameraComponentNpyBinaryFloat16Data(Args, ViewMode, Channels, ComponentType);
+	if (Data.Num() == 0) 
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Invalid Component type %s or index %d"), *ComponentType, CameraId));
+	}
+	return FExecStatus::Binary(Data);
+}
+
+//************************************************* MY FUNCTION END *************************************************//

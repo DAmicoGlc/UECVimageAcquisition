@@ -4,6 +4,8 @@
 #include "cnpy.h"
 #include "Serialization.h"
 #include "IImageWrapperModule.h"
+#include "Camera/CameraComponent.h"
+#include "CineCameraComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("SaveExr"), STAT_SaveExr, STATGROUP_UnrealCV);
 DECLARE_CYCLE_STAT(TEXT("SavePng"), STAT_SavePng, STATGROUP_UnrealCV);
@@ -31,7 +33,6 @@ void InitCaptureComponent(USceneCaptureComponent2D* CaptureComponent)
 	CaptureComponent->RegisterComponentWithWorld(World); // What happened for this?
 	// CaptureComponent->AddToRoot(); This is not necessary since it has been attached to the Pawn.
 }
-
 
 void SaveExr(UTextureRenderTarget2D* RenderTarget, FString Filename)
 {
@@ -115,83 +116,14 @@ UMaterial* UGTCaptureComponent::GetMaterial(FString InModeName = TEXT(""))
 /**
 Attach a GTCaptureComponent to a pawn
  */
-UGTCaptureComponent* UGTCaptureComponent::Create(APawn* InPawn, TArray<FString> Modes)
-{
-	UWorld* World = FUE4CVServer::Get().GetGameWorld();
-	UGTCaptureComponent* GTCapturer = NewObject<UGTCaptureComponent>();
-
-	GTCapturer->bIsActive = true;
-	// check(GTCapturer->IsComponentTickEnabled() == true);
-	GTCapturer->Pawn = InPawn; // This GTCapturer should depend on the Pawn and be released together with the Pawn.
-	GTCapturer->isPawn = true;
-
-	// This snippet is from Engine/Source/Runtime/Engine/Private/Components/SceneComponent.cpp, AttachTo
-	FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, false);
-	ConvertAttachLocation(EAttachLocation::KeepRelativeOffset, AttachmentRules.LocationRule, AttachmentRules.RotationRule, AttachmentRules.ScaleRule);
-	GTCapturer->AttachToComponent(InPawn->GetRootComponent(), AttachmentRules);
-	// GTCapturer->AddToRoot();
-	GTCapturer->RegisterComponentWithWorld(World);
-	GTCapturer->SetTickableWhenPaused(true);
-
-	for (FString Mode : Modes)
-	{
-		// DEPRECATED_FORGAME(4.6, "CaptureComponent2D should not be accessed directly, please use GetCaptureComponent2D() function instead. CaptureComponent2D will soon be private and your code will not compile.")
-		USceneCaptureComponent2D* CaptureComponent = NewObject<USceneCaptureComponent2D>();
-		CaptureComponent->bIsActive = false; // Disable it by default for performance consideration
-		GTCapturer->CaptureComponents.Add(Mode, CaptureComponent);
-
-		// CaptureComponent needs to be attached to somewhere immediately, otherwise it will be gc-ed
-
-		CaptureComponent->AttachToComponent(GTCapturer, AttachmentRules);
-		InitCaptureComponent(CaptureComponent);
-
-		UMaterial* Material = GetMaterial(Mode);
-		if (Mode == "lit") // For rendered images
-		{
-			// FViewMode::Lit(CaptureComponent->ShowFlags);
-			CaptureComponent->TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
-			// float DisplayGamma = SceneViewport->GetDisplayGamma();
-		}
-		else if (Mode == "default")
-		{
-			continue;
-		}
-		else // for ground truth
-		{
-			CaptureComponent->TextureTarget->TargetGamma = 1;
-			if (Mode == "object_mask") // For object mask
-			{
-				// FViewMode::Lit(CaptureComponent->ShowFlags);
-				FViewMode::VertexColor(CaptureComponent->ShowFlags);
-			}
-			else if (Mode == "wireframe") // For object mask
-			{
-				FViewMode::Wireframe(CaptureComponent->ShowFlags);
-			}
-			else
-			{
-				check(Material);
-				// GEngine->GetDisplayGamma(), the default gamma is 2.2
-				// CaptureComponent->TextureTarget->TargetGamma = 2.2;
-				FViewMode::PostProcess(CaptureComponent->ShowFlags);
-
-				CaptureComponent->PostProcessSettings.AddBlendable(Material, 1);
-				// Instead of switching post-process materials, we create several SceneCaptureComponent, so that we can capture different GT within the same frame.
-			}
-		}
-	}
-	return GTCapturer;
-}
-
 UGTCaptureComponent* UGTCaptureComponent::Create(AActor* InActor, TArray<FString> Modes)
 {
 	UWorld* World = FUE4CVServer::Get().GetGameWorld();
 	UGTCaptureComponent* GTCapturer = NewObject<UGTCaptureComponent>();
 
-	GTCapturer->bIsActive = true;
+	GTCapturer->SetActive(true);
 	// check(GTCapturer->IsComponentTickEnabled() == true);
 	GTCapturer->Actor = InActor; // This GTCapturer should depend on the Pawn and be released together with the Pawn.
-	GTCapturer->isPawn = false;
 
 	// This snippet is from Engine/Source/Runtime/Engine/Private/Components/SceneComponent.cpp, AttachTo
 	FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, false);
@@ -205,7 +137,7 @@ UGTCaptureComponent* UGTCaptureComponent::Create(AActor* InActor, TArray<FString
 	{
 		// DEPRECATED_FORGAME(4.6, "CaptureComponent2D should not be accessed directly, please use GetCaptureComponent2D() function instead. CaptureComponent2D will soon be private and your code will not compile.")
 		USceneCaptureComponent2D* CaptureComponent = NewObject<USceneCaptureComponent2D>();
-		CaptureComponent->bIsActive = false; // Disable it by default for performance consideration
+		CaptureComponent->SetActive(false); // Disable it by default for performance consideration
 		GTCapturer->CaptureComponents.Add(Mode, CaptureComponent);
 
 		// CaptureComponent needs to be attached to somewhere immediately, otherwise it will be gc-ed
@@ -248,9 +180,143 @@ UGTCaptureComponent* UGTCaptureComponent::Create(AActor* InActor, TArray<FString
 			}
 		}
 	}
+
+	//************************************************* MY EXTENSION *************************************************//
+
+	// Extract all components of the pawn
+    auto components = InActor->GetComponents();
+
+    // Need to dynamic casting
+    UCameraComponent* CameraComponent = nullptr;
+    UCineCameraComponent* CineCameraComponent = nullptr;
+
+	TArray<UCameraComponent*> CameraComponentList;
+	TArray<UCineCameraComponent*> CineCameraComponentList;
+
+    // Search for cineCameraComponent and cameraComponent
+	for (auto component : components)
+	{
+        // Try to cast it to CineCameraComponent
+        CineCameraComponent = dynamic_cast<UCineCameraComponent*>(component);
+        if (CineCameraComponent != nullptr) 
+        {
+            CineCameraComponentList.Push(CineCameraComponent);
+        }
+        else 
+        {
+            // Try to cast it to CameraComponent
+            CameraComponent = dynamic_cast<UCameraComponent*>(component);
+            if (CameraComponent != nullptr) 
+            {
+                CameraComponentList.Push(CameraComponent);
+            }
+        }
+	}
+
+    // Create a USceneCaptureComponent2D for each cameraComponent and cineCameraComponent
+    // and for each Mode
+    for (int32 Index = 0; Index != CineCameraComponentList.Num(); ++Index) {
+        CineCameraComponent = CineCameraComponentList[Index];
+		ComponentMap NewComponentMap = ComponentMap();
+		GTCapturer->CaptureCineCameraComponents.Add(NewComponentMap);
+
+        for (FString Mode : Modes)
+	    {
+            // Create the USceneCaptureComponent2D
+            USceneCaptureComponent2D* CaptureComponent = NewObject<USceneCaptureComponent2D>();
+		    CaptureComponent->SetActive(false);
+
+            // Define the attachmentRules and Attach the USceneCaptureComponent2D to the cameraComponent
+            CaptureComponent->AttachToComponent(CineCameraComponent, AttachmentRules);
+            InitCaptureComponent(CaptureComponent);
+
+            // Add USceneCaptureComponent2D to the capture component list
+            GTCapturer->CaptureCineCameraComponents[Index].CaptureComponents.Add(Mode, CaptureComponent);
+
+            UMaterial* Material = GetMaterial(Mode);
+            if (Mode == "lit")
+            {
+                CaptureComponent->TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+            }
+            else if (Mode == "default")
+            {
+                continue;
+            }
+            else 
+            {
+                CaptureComponent->TextureTarget->TargetGamma = 1;
+                if (Mode == "object_mask")
+                {
+                    FViewMode::VertexColor(CaptureComponent->ShowFlags);
+                }
+                else if (Mode == "wireframe")
+                {
+                    FViewMode::Wireframe(CaptureComponent->ShowFlags);
+                }
+                else
+                {
+                    check(Material);
+                    FViewMode::PostProcess(CaptureComponent->ShowFlags);
+                    CaptureComponent->PostProcessSettings.AddBlendable(Material, 1);
+                }
+            }
+
+        }
+
+    }
+
+    for (int32 Index = 0; Index != CameraComponentList.Num(); ++Index) {
+        CameraComponent = CameraComponentList[Index];
+		ComponentMap NewComponentMap = ComponentMap();
+		GTCapturer->CaptureCameraComponents.Add(NewComponentMap);
+
+        for (FString Mode : Modes)
+	    {
+            // Create the USceneCaptureComponent2D
+            USceneCaptureComponent2D* CaptureComponent = NewObject<USceneCaptureComponent2D>();
+		    CaptureComponent->SetActive(false);
+
+            // Define the attachmentRules and Attach the USceneCaptureComponent2D to the cameraComponent
+            CaptureComponent->AttachToComponent(CameraComponent, AttachmentRules);
+            InitCaptureComponent(CaptureComponent);
+
+            // Add USceneCaptureComponent2D to the capture component list
+            GTCapturer->CaptureCameraComponents[Index].CaptureComponents.Add(Mode, CaptureComponent);
+
+            UMaterial* Material = GetMaterial(Mode);
+            if (Mode == "lit")
+            {
+                CaptureComponent->TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
+            }
+            else if (Mode == "default")
+            {
+                continue;
+            }
+            else 
+            {
+                CaptureComponent->TextureTarget->TargetGamma = 1;
+                if (Mode == "object_mask")
+                {
+                    FViewMode::VertexColor(CaptureComponent->ShowFlags);
+                }
+                else if (Mode == "wireframe")
+                {
+                    FViewMode::Wireframe(CaptureComponent->ShowFlags);
+                }
+                else
+                {
+                    check(Material);
+                    FViewMode::PostProcess(CaptureComponent->ShowFlags);
+                    CaptureComponent->PostProcessSettings.AddBlendable(Material, 1);
+                }
+            }
+
+        }
+
+    }
+
 	return GTCapturer;
 }
-
 
 UGTCaptureComponent::UGTCaptureComponent()
 {
@@ -270,24 +336,33 @@ void UGTCaptureComponent::SetFOVAngle(float FOV)
     {
         Iterator.Value()->FOVAngle = FOV;
     }
+
+	for (auto CameraComponentMap : CaptureCameraComponents) 
+	{
+		for (auto Iterator = CameraComponentMap.CaptureComponents.CreateIterator(); Iterator; ++Iterator)
+		{
+			Iterator.Value()->FOVAngle = FOV;
+		}
+	}
+
+	for (auto CineCameraComponentMap : CaptureCameraComponents) 
+	{
+		for (auto Iterator = CineCameraComponentMap.CaptureComponents.CreateIterator(); Iterator; ++Iterator)
+		{
+			Iterator.Value()->FOVAngle = FOV;
+		}
+	}
 }
 
 FAsyncRecord* UGTCaptureComponent::Capture(FString Mode, FString InFilename)
 {
 	// Flush location and rotation
-	UE_LOG(LogUnrealCV, Error, TEXT("I am using CAPTURE"));
 	check(CaptureComponents.Num() != 0);
 	USceneCaptureComponent2D* CaptureComponent = CaptureComponents.FindRef(Mode);
 	if (CaptureComponent == nullptr)
 		return nullptr;
-
-	if (this->isPawn) {
-		const FRotator PawnViewRotation = Pawn->GetViewRotation();
-		if (!PawnViewRotation.Equals(CaptureComponent->GetComponentRotation()))
-		{
-			CaptureComponent->SetWorldRotation(PawnViewRotation);
-		}
-	}
+	
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
 
 	FAsyncRecord* AsyncRecord = FAsyncRecord::Create();
 	FGTCaptureTask GTCaptureTask = FGTCaptureTask(Mode, InFilename, GFrameCounter, AsyncRecord);
@@ -300,21 +375,13 @@ TArray<uint8> UGTCaptureComponent::CapturePng(FString Mode)
 {
 	// Flush location and rotation
 	check(CaptureComponents.Num() != 0);
-	UE_LOG(LogUnrealCV, Error, TEXT("I am using CAPTURE PNG"));
 	USceneCaptureComponent2D* CaptureComponent = CaptureComponents.FindRef(Mode);
 
 	TArray<uint8> ImgData;
 	if (CaptureComponent == nullptr)
 		return ImgData;
 
-	// Attach this to something, for example, a real camera
-	if (this->isPawn) {
-		const FRotator PawnViewRotation = Pawn->GetViewRotation();
-		if (!PawnViewRotation.Equals(CaptureComponent->GetComponentRotation()))
-		{
-			CaptureComponent->SetWorldRotation(PawnViewRotation);
-		}
-	}
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
 
 	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
 	static IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
@@ -347,14 +414,7 @@ TArray<uint8> UGTCaptureComponent::CaptureNpyUint8(FString Mode, int32 Channels)
 		return NpyData;
 	}
 
-	// Attach this to something, for example, a real camera
-	if (this->isPawn) {
-		const FRotator PawnViewRotation = Pawn->GetViewRotation();
-		if (!PawnViewRotation.Equals(CaptureComponent->GetComponentRotation()))
-		{
-			CaptureComponent->SetWorldRotation(PawnViewRotation);
-		}
-	}
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
 
 	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
 	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
@@ -383,18 +443,11 @@ TArray<uint8> UGTCaptureComponent::CaptureNpyFloat16(FString Mode, int32 Channel
 
 	TArray<uint8> NpyData;
 	if (CaptureComponent == nullptr) {
-	  UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+	  	UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
 		return NpyData;
-  }
+  	}
 
-	// Attach this to something, for example, a real camera
-	if (this->isPawn) {
-		const FRotator PawnViewRotation = Pawn->GetViewRotation();
-		if (!PawnViewRotation.Equals(CaptureComponent->GetComponentRotation()))
-		{
-			CaptureComponent->SetWorldRotation(PawnViewRotation);
-		}
-	}
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
 
 	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
 	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
@@ -539,60 +592,57 @@ void UGTCaptureComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 
 	// Update rotation of each frame
 	// from ab237f46dc0eee40263acbacbe938312eb0dffbb:CameraComponent.cpp:232
-	if (this->isPawn) {
-		check(this->Pawn); // this GTCapturer should be released, if the Pawn is deleted.
-		const APawn* OwningPawn = this->Pawn;
-		const AController* OwningController = OwningPawn ? OwningPawn->GetController() : nullptr;
-		if (OwningController && OwningController->IsLocalPlayerController())
-		{
-			const FRotator PawnViewRotation = OwningPawn->GetViewRotation();
-			for (auto Elem : CaptureComponents)
-			{
-				USceneCaptureComponent2D* CaptureComponent = Elem.Value;
-				if (!PawnViewRotation.Equals(CaptureComponent->GetComponentRotation()))
-				{
-					CaptureComponent->SetWorldRotation(PawnViewRotation);
-				}
-			}
-		}
-	}
+	// if (this->isPawn) {
+	// 	check(this->Pawn); // this GTCapturer should be released, if the Pawn is deleted.
+	// 	const APawn* OwningPawn = this->Pawn;
+	// 	const AController* OwningController = OwningPawn ? OwningPawn->GetController() : nullptr;
+	// 	if (OwningController && OwningController->IsLocalPlayerController())
+	// 	{
+	// 		const FRotator PawnViewRotation = OwningPawn->GetViewRotation();
+	// 		for (auto Elem : CaptureComponents)
+	// 		{
+	// 			USceneCaptureComponent2D* CaptureComponent = Elem.Value;
+	// 			CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+	// 		}
+	// 	}
+	// }
 	
-	while (!PendingTasks.IsEmpty())
-	{
-		FGTCaptureTask Task;
-		PendingTasks.Peek(Task);
-		uint64 CurrentFrame = GFrameCounter;
+	// while (!PendingTasks.IsEmpty())
+	// {
+	// 	FGTCaptureTask Task;
+	// 	PendingTasks.Peek(Task);
+	// 	uint64 CurrentFrame = GFrameCounter;
 
-		int32 SkipFrame = 1;
-		if (!(CurrentFrame > Task.CurrentFrame + SkipFrame)) // TODO: This is not an elegant solution, fix it later.
-		{ // Wait for the rendering thread to catch up game thread.
-			break;
-		}
+	// 	int32 SkipFrame = 1;
+	// 	if (!(CurrentFrame > Task.CurrentFrame + SkipFrame)) // TODO: This is not an elegant solution, fix it later.
+	// 	{ // Wait for the rendering thread to catch up game thread.
+	// 		break;
+	// 	}
 
-		PendingTasks.Dequeue(Task);
-		USceneCaptureComponent2D* CaptureComponent = this->CaptureComponents.FindRef(Task.Mode);
-		if (CaptureComponent == nullptr)
-		{
-			UE_LOG(LogUnrealCV, Warning, TEXT("Unrecognized capture mode %s"), *Task.Mode);
-		}
-		else
-		{
-			FString LowerCaseFilename = Task.Filename.ToLower();
-			if (LowerCaseFilename.EndsWith("png"))
-			{
-				SavePng(CaptureComponent->TextureTarget, Task.Filename);
-			}
-			else if (LowerCaseFilename.EndsWith("exr"))
-			{
-				SaveExr(CaptureComponent->TextureTarget, Task.Filename);
-			}
-			else
-			{
-				UE_LOG(LogUnrealCV, Warning, TEXT("Unrecognized image file extension %s"), *LowerCaseFilename);
-			}
-		}
-		Task.AsyncRecord->bIsCompleted = true;
-	}
+	// 	PendingTasks.Dequeue(Task);
+	// 	USceneCaptureComponent2D* CaptureComponent = this->CaptureComponents.FindRef(Task.Mode);
+	// 	if (CaptureComponent == nullptr)
+	// 	{
+	// 		UE_LOG(LogUnrealCV, Warning, TEXT("Unrecognized capture mode %s"), *Task.Mode);
+	// 	}
+	// 	else
+	// 	{
+	// 		FString LowerCaseFilename = Task.Filename.ToLower();
+	// 		if (LowerCaseFilename.EndsWith("png"))
+	// 		{
+	// 			SavePng(CaptureComponent->TextureTarget, Task.Filename);
+	// 		}
+	// 		else if (LowerCaseFilename.EndsWith("exr"))
+	// 		{
+	// 			SaveExr(CaptureComponent->TextureTarget, Task.Filename);
+	// 		}
+	// 		else
+	// 		{
+	// 			UE_LOG(LogUnrealCV, Warning, TEXT("Unrecognized image file extension %s"), *LowerCaseFilename);
+	// 		}
+	// 	}
+	// 	Task.AsyncRecord->bIsCompleted = true;
+	// }
 }
 
 USceneCaptureComponent2D* UGTCaptureComponent::GetCaptureComponent(FString Mode)
@@ -602,21 +652,11 @@ USceneCaptureComponent2D* UGTCaptureComponent::GetCaptureComponent(FString Mode)
     return CaptureComponent;
 }
 
-
 /** Return the rotation of the component **/
 FRotator UGTCaptureComponent::GetCaptureComponentRotation()
 {
-	FRotator CameraRotation;
-	if (this->isPawn)
-	{
-		APawn* actualPawn = this->Pawn;
-      	CameraRotation = actualPawn->GetControlRotation();
-	}
-	else
-	{
-		AActor* actualActor = this->Actor;
-        CameraRotation = actualActor->GetActorRotation();
-	}
+	AActor* actualActor = this->Actor;
+	FRotator CameraRotation = actualActor->GetActorRotation();
 
 	return CameraRotation;
 }
@@ -624,55 +664,328 @@ FRotator UGTCaptureComponent::GetCaptureComponentRotation()
 /** Return the location of the component **/
 FVector UGTCaptureComponent::GetCaptureComponentLocation()
 {
-	FVector CameraLocation;
-	if (this->isPawn)
-	{
-		APawn* actualPawn = this->Pawn;
-		CameraLocation = actualPawn->GetActorLocation();
-	}
-	else
-	{
-		AActor* actualActor = this->Actor;
-		CameraLocation = actualActor->GetActorLocation();
-	}
-
+	AActor* actualActor = this->Actor;
+	FVector CameraLocation = actualActor->GetActorLocation();
+	
 	return CameraLocation;
 }
 
 /** Set the rotation of the component **/
 void UGTCaptureComponent::SetCaptureComponentRotation(FRotator newRotation) 
 {
-	if (this->isPawn)
-	{
-		APawn* actualPawn = this->Pawn;
-		AController* Controller = actualPawn->GetController();
-		Controller->ClientSetRotation(newRotation);
-	}
-	else 
-	{
-		AActor* actualActor = this->Actor;
-		actualActor->SetActorRotation(newRotation);
-	}
+	AActor* actualActor = this->Actor;
+	actualActor->SetActorRotation(newRotation);
 }
 /** Set the location of the component **/
 void UGTCaptureComponent::SetCaptureComponentLocation(FVector newLocation) {
 	bool Success;
 	bool Sweep = false;
-	if (this->isPawn)
-	{
-		APawn* actualPawn = this->Pawn;
-		Success = actualPawn->SetActorLocation(newLocation, Sweep, NULL, ETeleportType::TeleportPhysics);
-	}
-	else 
-	{
-		AActor* actualActor = this->Actor;
-		Success = actualActor->SetActorLocation(newLocation, Sweep, NULL, ETeleportType::TeleportPhysics);
-	}
+	AActor* actualActor = this->Actor;
+	Success = actualActor->SetActorLocation(newLocation, Sweep, NULL, ETeleportType::TeleportPhysics);
 }
 
+//************************************************* MY FUNCTION *************************************************//
 
-/** Check if it is a Pawn or not **/
-bool UGTCaptureComponent::ComponentIsPawn()
+FAsyncRecord* UGTCaptureComponent::CameraComponentCapture(FString Mode, FString InFilename, int32 Index)
 {
-	return this->isPawn;
+	// Flush location and rotation
+	if (CaptureCameraComponents.Num() <= Index) 
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning null pointer."), Index);
+		return nullptr;
+	}
+	if (CaptureCameraComponents[Index].CaptureComponents.Num() == 0) 
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning null pointer."), *Mode);
+		return nullptr;
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCameraComponents[Index].CaptureComponents.FindRef(Mode);
+	if (CaptureComponent == nullptr)
+		return nullptr;
+	
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	FAsyncRecord* AsyncRecord = FAsyncRecord::Create();
+	FGTCaptureTask GTCaptureTask = FGTCaptureTask(Mode, InFilename, GFrameCounter, AsyncRecord);
+	this->PendingTasks.Enqueue(GTCaptureTask);
+
+	return AsyncRecord;
+}
+
+FAsyncRecord* UGTCaptureComponent::CineCameraComponentCapture(FString Mode, FString InFilename, int32 Index)
+{
+	// Flush location and rotation
+	if (CaptureCineCameraComponents.Num() <= Index) 
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning null pointer."), Index);
+		return nullptr;
+	}
+	if (CaptureCineCameraComponents[Index].CaptureComponents.Num() == 0) 
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning null pointer."), *Mode);
+		return nullptr;
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCineCameraComponents[Index].CaptureComponents.FindRef(Mode);
+	if (CaptureComponent == nullptr)
+		return nullptr;
+	
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	FAsyncRecord* AsyncRecord = FAsyncRecord::Create();
+	FGTCaptureTask GTCaptureTask = FGTCaptureTask(Mode, InFilename, GFrameCounter, AsyncRecord);
+	this->PendingTasks.Enqueue(GTCaptureTask);
+
+	return AsyncRecord;
+}
+
+TArray<uint8> UGTCaptureComponent::CameraComponentCapturePng(FString Mode, int32 Index)
+{
+	if (CaptureCameraComponents.Num() <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning empty array."), Index);
+		return TArray<uint8>();
+	}
+	if (CaptureCameraComponents[Index].CaptureComponents.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return TArray<uint8>();
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCameraComponents[Index].CaptureComponents.FindRef(Mode);
+
+	TArray<uint8> ImgData;
+	if (CaptureComponent == nullptr)
+		return ImgData;
+
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+	static IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	static TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
+	TArray<FColor> Image;
+	FTextureRenderTargetResource* RenderTargetResource;
+	Image.AddZeroed(Width * Height);
+	RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+	FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	ReadSurfaceDataFlags.SetLinearToGamma(false); // This is super important to disable this!
+												  // Instead of using this flag, we will set the gamma to the correct value directly
+	RenderTargetResource->ReadPixels(Image, ReadSurfaceDataFlags);
+	ImageWrapper->SetRaw(Image.GetData(), Image.GetAllocatedSize(), Width, Height, ERGBFormat::BGRA, 8);
+	ImgData = ImageWrapper->GetCompressed();
+
+	return ImgData;
+}
+
+TArray<uint8> UGTCaptureComponent::CineCameraComponentCapturePng(FString Mode, int32 Index)
+{
+	if (CaptureCineCameraComponents.Num() <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning empty array."), Index);
+		return TArray<uint8>();
+	}
+	if (CaptureCineCameraComponents[Index].CaptureComponents.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return TArray<uint8>();
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCineCameraComponents[Index].CaptureComponents.FindRef(Mode);
+
+	TArray<uint8> ImgData;
+	if (CaptureComponent == nullptr)
+		return ImgData;
+
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+	static IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	static TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
+	TArray<FColor> Image;
+	FTextureRenderTargetResource* RenderTargetResource;
+	Image.AddZeroed(Width * Height);
+	RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+	FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	ReadSurfaceDataFlags.SetLinearToGamma(false); // This is super important to disable this!
+												  // Instead of using this flag, we will set the gamma to the correct value directly
+	RenderTargetResource->ReadPixels(Image, ReadSurfaceDataFlags);
+	ImageWrapper->SetRaw(Image.GetData(), Image.GetAllocatedSize(), Width, Height, ERGBFormat::BGRA, 8);
+	ImgData = ImageWrapper->GetCompressed();
+
+	return ImgData;
+}
+
+TArray<uint8> UGTCaptureComponent::CameraComponentCaptureNpyUint8(FString Mode, int32 Channels, int32 Index)
+{
+	if (CaptureCameraComponents.Num() <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning empty array."), Index);
+		return TArray<uint8>();
+	}
+	if (CaptureCameraComponents[Index].CaptureComponents.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return TArray<uint8>();
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCameraComponents[Index].CaptureComponents.FindRef(Mode);
+
+	TArray<uint8> NpyData;
+	if (CaptureComponent == nullptr) {
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return NpyData;
+	}
+
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
+	TArray<FColor> ImageData;
+	FTextureRenderTargetResource* RenderTargetResource;
+	ImageData.AddUninitialized(Width * Height);
+	RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+	FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	ReadSurfaceDataFlags.SetLinearToGamma(false); // This is super important to disable this!
+	// Instead of using this flag, we will set the gamma to the correct value directly
+	RenderTargetResource->ReadPixels(ImageData, ReadSurfaceDataFlags);
+
+	// Check the byte order of data
+	// Compress image data to npy array
+	// Generate a header for the numpy array
+	NpyData = NpySerialization(ImageData, Width, Height, Channels);
+
+	return NpyData;
+}
+
+TArray<uint8> UGTCaptureComponent::CineCameraComponentCaptureNpyUint8(FString Mode, int32 Channels, int32 Index)
+{
+	if (CaptureCineCameraComponents.Num() <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning empty array."), Index);
+		return TArray<uint8>();
+	}
+	if (CaptureCineCameraComponents[Index].CaptureComponents.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return TArray<uint8>();
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCineCameraComponents[Index].CaptureComponents.FindRef(Mode);
+
+	TArray<uint8> NpyData;
+	if (CaptureComponent == nullptr) {
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return NpyData;
+	}
+
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
+	TArray<FColor> ImageData;
+	FTextureRenderTargetResource* RenderTargetResource;
+	ImageData.AddUninitialized(Width * Height);
+	RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+	FReadSurfaceDataFlags ReadSurfaceDataFlags;
+	ReadSurfaceDataFlags.SetLinearToGamma(false); // This is super important to disable this!
+	// Instead of using this flag, we will set the gamma to the correct value directly
+	RenderTargetResource->ReadPixels(ImageData, ReadSurfaceDataFlags);
+
+	// Check the byte order of data
+	// Compress image data to npy array
+	// Generate a header for the numpy array
+	NpyData = NpySerialization(ImageData, Width, Height, Channels);
+
+	return NpyData;
+}
+
+TArray<uint8> UGTCaptureComponent::CameraComponentCaptureNpyFloat16(FString Mode, int32 Channels, int32 Index)
+{
+	if (CaptureCameraComponents.Num() <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning empty array."), Index);
+		return TArray<uint8>();
+	}
+	if (CaptureCameraComponents[Index].CaptureComponents.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return TArray<uint8>();
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCameraComponents[Index].CaptureComponents.FindRef(Mode);
+
+	TArray<uint8> NpyData;
+	if (CaptureComponent == nullptr) {
+	  	UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return NpyData;
+  	}
+
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
+	TArray<FFloat16Color> ImageData;
+	FTextureRenderTargetResource* RenderTargetResource;
+	ImageData.AddUninitialized(Width * Height);
+	RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+	RenderTargetResource->ReadFloat16Pixels(ImageData);
+
+	// Check the byte order of data
+	// Compress image data to npy array
+	// Generate a header for the numpy array
+	NpyData = NpySerialization(ImageData, Width, Height, Channels);
+
+	return NpyData;
+}
+
+TArray<uint8> UGTCaptureComponent::CineCameraComponentCaptureNpyFloat16(FString Mode, int32 Channels, int32 Index)
+{
+	if (CaptureCineCameraComponents.Num() <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component with index %d not found. Returning empty array."), Index);
+		return TArray<uint8>();
+	}
+	if (CaptureCineCameraComponents[Index].CaptureComponents.Num() == 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return TArray<uint8>();
+	}
+	USceneCaptureComponent2D* CaptureComponent = CaptureCineCameraComponents[Index].CaptureComponents.FindRef(Mode);
+
+	TArray<uint8> NpyData;
+	if (CaptureComponent == nullptr) {
+	  	UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+		return NpyData;
+  	}
+
+	CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+	int32 Width = RenderTarget->SizeX, Height = RenderTarget->SizeY;
+	TArray<FFloat16Color> ImageData;
+	FTextureRenderTargetResource* RenderTargetResource;
+	ImageData.AddUninitialized(Width * Height);
+	RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+	RenderTargetResource->ReadFloat16Pixels(ImageData);
+
+	// Check the byte order of data
+	// Compress image data to npy array
+	// Generate a header for the numpy array
+	NpyData = NpySerialization(ImageData, Width, Height, Channels);
+
+	return NpyData;
+}
+
+USceneCaptureComponent2D* UGTCaptureComponent::GetCameraComponentCaptureComponent(FString Mode, int32 Index)
+{
+	check(CaptureCameraComponents.Num() > Index);
+	check(CaptureCameraComponents[Index].CaptureComponents.Num() != 0);
+	USceneCaptureComponent2D* CaptureComponent = CaptureCameraComponents[Index].CaptureComponents.FindRef(Mode);
+    return CaptureComponent;
+}
+
+USceneCaptureComponent2D* UGTCaptureComponent::GetCineCameraComponentCaptureComponent(FString Mode, int32 Index)
+{
+	check(CaptureCineCameraComponents.Num() > Index);
+	check(CaptureCineCameraComponents[Index].CaptureComponents.Num() != 0);
+	USceneCaptureComponent2D* CaptureComponent = CaptureCineCameraComponents[Index].CaptureComponents.FindRef(Mode);
+    return CaptureComponent;
 }

@@ -14,6 +14,11 @@ struct FGTCaptureTask
 		Mode(InMode), Filename(InFilename), CurrentFrame(InCurrentFrame), AsyncRecord(InAsyncRecord) {}
 };
 
+struct ComponentMap {
+	TMap<FString, USceneCaptureComponent2D*> CaptureComponents;
+	ComponentMap() {}
+};
+
 /**
  * Use USceneCaptureComponent2D to export information from the scene.
  * This class needs to be tickable to update the rotation of the USceneCaptureComponent2D
@@ -28,13 +33,10 @@ private:
 	TArray<uint8> NpySerialization(TArray<FColor> ImageData, int32 Width, int32 Height, int32 Channel);
 	TArray<uint8> NpySerialization(TArray<FFloat16Color> ImageData, int32 Width, int32 Height, int32 Channel);
 
-public:	
-	bool isPawn;
-	APawn* Pawn;
+public:
 	AActor* Actor;
 	
-	static UGTCaptureComponent* Create(APawn* Pawn, TArray<FString> Modes);
-	static UGTCaptureComponent* Create(AActor* InActor, TArray<FString> Modes);
+	static UGTCaptureComponent* Create(AActor* Actor, TArray<FString> Modes);
 	
 	static UMaterial* GetMaterial(FString ModeName);
 	
@@ -45,17 +47,27 @@ public:
 	
 	/** Save image to a file */
 	FAsyncRecord* Capture(FString Mode, FString Filename);
+	FAsyncRecord* CameraComponentCapture(FString Mode, FString InFilename, int32 Index);
+	FAsyncRecord* CineCameraComponentCapture(FString Mode, FString InFilename, int32 Index);
 	
 	/** Read binary data in png format */
 	TArray<uint8> CapturePng(FString Mode);
+	TArray<uint8> CameraComponentCapturePng(FString Mode, int32 Index);
+	TArray<uint8> CineCameraComponentCapturePng(FString Mode, int32 Index);
 	
 	/** Read binary data in uncompressed numpy array */
 	TArray<uint8> CaptureNpyUint8(FString Mode, int32 Channels);
+	TArray<uint8> CameraComponentCaptureNpyUint8(FString Mode, int32 Channels, int32 Index);
+	TArray<uint8> CineCameraComponentCaptureNpyUint8(FString Mode, int32 Channels, int32 Index);
 	
 	/** Read binary data in uncompressed numpy array */
 	TArray<uint8> CaptureNpyFloat16(FString Mode, int32 Channels);
+	TArray<uint8> CameraComponentCaptureNpyFloat16(FString Mode, int32 Channels, int32 Index);
+	TArray<uint8> CineCameraComponentCaptureNpyFloat16(FString Mode, int32 Channels, int32 Index);
 	
 	USceneCaptureComponent2D* GetCaptureComponent(FString Mode);
+	USceneCaptureComponent2D* GetCameraComponentCaptureComponent(FString Mode, int32 Index);
+	USceneCaptureComponent2D* GetCineCameraComponentCaptureComponent(FString Mode, int32 Index);
 
 	/** Return the rotation of the component **/
 	FRotator GetCaptureComponentRotation();
@@ -66,14 +78,12 @@ public:
 	void SetCaptureComponentRotation(FRotator newRotation);
 	/** Set the location of the component **/
 	void SetCaptureComponentLocation(FVector newLocation);
-
-	/** Check if it is a Pawn or not **/
-	bool ComponentIsPawn();
-
-
 private:
 	const bool bIsTicking = true;
 
 	TQueue<FGTCaptureTask, EQueueMode::Spsc> PendingTasks;
 	TMap<FString, USceneCaptureComponent2D*> CaptureComponents;
+
+	TArray<ComponentMap> CaptureCameraComponents;
+	TArray<ComponentMap> CaptureCineCameraComponents;
 };

@@ -28,11 +28,6 @@ public:
 	/** vset /camera/[id]/pose */
 	FExecStatus	SetCameraPose(const TArray<FString>& Args);
 
-	// /** vget /actor/rotation, follow the concept of actor in RL */
-	// FExecStatus GetActorRotation(const TArray<FString>& Args);
-	// /** vget /actor/location */
-	// FExecStatus GetActorLocation(const TArray<FString>& Args);
-
 	/** vget /camera/view */
 	FExecStatus GetScreenshot(const TArray<FString>& Args);
 
@@ -47,11 +42,6 @@ public:
 
 	/** Get HDR buffer visualization */
 	FExecStatus GetBuffer(const TArray<FString>& Args);
-
-	/** Get HDR from the scene */
-	// FExecStatus GetCameraHDR(const TArray<FString>& Args);
-	// FExecStatus GetCameraDepth(const TArray<FString>& Args);
-	// FExecStatus GetCameraLit(const TArray<FString>& Args);
 
 	/** Get ViewMode data by switching to this viewmode then switch back, can not support multi-camera */
 	FExecStatus GetObjectInstanceMask(const TArray<FString>& Args);
@@ -70,4 +60,37 @@ public:
 
 	/** Get response with raw binary data as an uncompressed numpy array */
 	FExecStatus GetNpyBinaryFloat16(const TArray<FString>& Args, const FString& ViewMode, int32 Channels);
+
+
+
+
+	//************************************************* MY FUNCTION *************************************************//
+
+	/** Get camera component image with a given mode, Get ViewMode data using SceneCaptureComponent, support multi-camera */
+	FExecStatus GetCameraComponentViewMode(const TArray<FString>& Args);
+
+	/** Explicitly set ViewMode, then GetCameraViewMode from camera components */
+	FExecStatus GetCameraComponentLitViewMode(const TArray<FString>& Args);
+
+	/** Get cine camera component image with a given mode, Get ViewMode data using SceneCaptureComponent, support multi-camera */
+	FExecStatus GetCineCameraComponentViewMode(const TArray<FString>& Args);
+
+	/** Explicitly set ViewMode, then GetCameraViewMode from cine camera components */
+	FExecStatus GetCineCameraComponentLitViewMode(const TArray<FString>& Args);
+	
+	/** Get raw binary image data from camera component */
+	FExecStatus GetCameraComponentPngBinary(const TArray<FString>& Args, const FString& ViewMode, const FString& ComponentType);
+
+	/** Get raw binary data as an uncompressed numpy array from camera component */
+	TArray<uint8> GetCameraComponentNpyBinaryUint8Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType);
+
+	/** Get response with raw binary data as an uncompressed numpy array from camera component */
+	FExecStatus GetCameraComponentNpyBinaryUint8(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType);
+
+	/** Get raw binary data as an uncompressed numpy array from camera component */
+	TArray<uint8> GetCameraComponentNpyBinaryFloat16Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType);
+
+	/** Get response with raw binary data as an uncompressed numpy array from camera component */
+	FExecStatus GetCameraComponentNpyBinaryFloat16(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType);
+
 };
