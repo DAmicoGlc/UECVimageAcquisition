@@ -1,5 +1,29 @@
 
 # Untrack venv and vs
-myEnv/
+.myEnv/
 .vs/
+.vscode/
 UnrealCv
+BUILD
+.gitignore
+
+# Untrack images
+*.png
+*.PNG
+
+# Untrack Pychache
+__pycache__
+
+# Untrack all neural models
+models
+datasets
+deployment
+checkpoints
+nets
+preprocessing
+download_and_convert_data.py
+eval_image_classifier.py
+export_inference_graph_test.py
+export_inference_graph.py
+slim_walkthrough.ipynb
+WORKSPACE
