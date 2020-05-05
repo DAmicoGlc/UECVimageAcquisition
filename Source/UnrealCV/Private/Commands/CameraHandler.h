@@ -87,6 +87,10 @@ public:
 	/** Get response with raw binary data as an uncompressed numpy array from camera component */
 	FExecStatus GetCameraComponentNpyBinaryUint8(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType);
 
+	/** Get response with raw binary data as an uncompressed numpy array from all camera component */
+	FExecStatus GetAllCameraComponentNpyBinaryUint8(const TArray<FString>& Args, const FString& ViewMode, int32 Channels);
+	TArray<uint8> GetAllCameraComponentNpyBinaryUint8Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels);
+
 	/** Get raw binary data as an uncompressed numpy array from camera component */
 	TArray<uint8> GetCameraComponentNpyBinaryFloat16Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType);
 

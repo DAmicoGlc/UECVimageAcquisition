@@ -898,6 +898,162 @@ TArray<uint8> UGTCaptureComponent::CineCameraComponentCaptureNpyUint8(FString Mo
 	return NpyData;
 }
 
+TArray<uint8> UGTCaptureComponent::AllCameraComponentCaptureNpyUint8(FString Mode, int32 Channels)
+{
+	if (CaptureCameraComponents.Num() <= 0 && CaptureCineCameraComponents.Num() <= 0)
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Components not found. Returning empty array."));
+		return TArray<uint8>();
+	}
+
+	USceneCaptureComponent2D* CaptureComponent;
+	TArray<uint8> NpyData = TArray<uint8>();
+	TArray<ImageStruct> ImageList;
+	ImageStruct ImageDataStruct;
+	int32 Width = 0, Height = 0;
+	
+	for (int index = 0; index < CaptureCameraComponents.Num(); index++)
+	{
+		if (CaptureCameraComponents[index].CaptureComponents.Num() == 0)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Component for index %d not found. Returning empty array."), index);
+			return TArray<uint8>();
+		}
+
+		CaptureComponent = CaptureCameraComponents[index].CaptureComponents.FindRef(Mode);
+		if (CaptureComponent == nullptr) {
+			UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+			return NpyData;
+		}
+
+		CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+		UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+		Width = RenderTarget->SizeX;
+		Height = RenderTarget->SizeY;
+		TArray<FColor> ImageData;
+		FTextureRenderTargetResource* RenderTargetResource;
+		ImageData.AddUninitialized(Width * Height);
+		RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+		FReadSurfaceDataFlags ReadSurfaceDataFlags;
+		ReadSurfaceDataFlags.SetLinearToGamma(false); // This is super important to disable this!
+		// Instead of using this flag, we will set the gamma to the correct value directly
+		RenderTargetResource->ReadPixels(ImageData, ReadSurfaceDataFlags);
+
+		ImageDataStruct = ImageStruct(ImageData);
+
+		// Check the byte order of data
+		// Compress image data to npy array
+		// Generate a header for the numpy array
+		ImageList.Add(ImageDataStruct);
+		
+	}
+
+	for (int index = 0; index < CaptureCineCameraComponents.Num(); index++)
+	{
+		if (CaptureCineCameraComponents[index].CaptureComponents.Num() == 0)
+		{
+			UE_LOG(LogUnrealCV, Error, TEXT("Component for index %d not found. Returning empty array."), index);
+			return TArray<uint8>();
+		}
+
+		CaptureComponent = CaptureCineCameraComponents[index].CaptureComponents.FindRef(Mode);
+		if (CaptureComponent == nullptr) {
+			UE_LOG(LogUnrealCV, Error, TEXT("Component for mode %s not found. Returning empty array."), *Mode);
+			return NpyData;
+		}
+
+		CaptureComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+		UTextureRenderTarget2D* RenderTarget = CaptureComponent->TextureTarget;
+		Width = RenderTarget->SizeX;
+		Height = RenderTarget->SizeY;
+		TArray<FColor> ImageData;
+		FTextureRenderTargetResource* RenderTargetResource;
+		ImageData.AddUninitialized(Width * Height);
+		RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+		FReadSurfaceDataFlags ReadSurfaceDataFlags;
+		ReadSurfaceDataFlags.SetLinearToGamma(false); // This is super important to disable this!
+		// Instead of using this flag, we will set the gamma to the correct value directly
+		RenderTargetResource->ReadPixels(ImageData, ReadSurfaceDataFlags);
+
+		ImageDataStruct = ImageStruct(ImageData);
+
+		// Check the byte order of data
+		// Compress image data to npy array
+		// Generate a header for the numpy array
+		ImageList.Add(ImageStruct(ImageDataStruct));
+		
+	}
+
+	if (Width == 0 || Height == 0) 
+	{
+		UE_LOG(LogUnrealCV, Error, TEXT("Height or Width error for components for mode %s. Returning empty array."), *Mode);
+		return NpyData;
+	} 
+	NpyData = NpySerialization(ImageList, Width, Height, 3);
+
+	return NpyData;
+}
+
+TArray<uint8> UGTCaptureComponent::NpySerialization(TArray<ImageStruct> ImageDataList, int32 Width, int32 Height, int32 Channel)
+{
+	uint8 *TypePointer = nullptr; // Only used for determing the type
+
+	std::vector<int> Shape;
+	Shape.push_back(ImageDataList.Num());
+	Shape.push_back(Height);
+	Shape.push_back(Width);
+	if (Channel != 1) Shape.push_back(Channel);
+
+	std::vector<char> NpyHeader = cnpy::create_npy_header(TypePointer, Shape);
+
+	std::vector<uint8> Uint8Data;
+	Uint8Data.reserve(Height * Width * Channel * ImageDataList.Num());
+
+	for (int j = 0; j < ImageDataList.Num(); j++)
+	{
+		for (int i = 0; i < Height * Width; i++)
+		{
+			if (Channel == 1)
+			{
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].R);
+			}
+			else if (Channel == 3)
+			{
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].R);
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].G);
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].B);
+			}
+			else if (Channel == 4)
+			{
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].R);
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].G);
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].B);
+				Uint8Data.push_back(ImageDataList[j].ImageData[i].A);
+			}
+		}
+	}
+	check(Uint8Data.size() == Height * Width * Channel * ImageDataList.Num());
+	// Convert to binary array
+	const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&Uint8Data[0]);
+
+	// https://stackoverflow.com/questions/22629728/what-is-the-difference-between-char-and-unsigned-char
+	// https://stackoverflow.com/questions/11022099/convert-float-vector-to-byte-vector-and-back
+	std::vector<unsigned char> NpyData(bytes, bytes + sizeof(uint8) * Uint8Data.size());
+
+	NpyHeader.insert(NpyHeader.end(), NpyData.begin(), NpyData.end());
+
+	// FIXME: Find a more efficient implementation
+	TArray<uint8> BinaryData;
+	for (char Element : NpyHeader)
+	{
+		BinaryData.Add(Element);
+	}
+	return BinaryData;
+}
+
+
 TArray<uint8> UGTCaptureComponent::CameraComponentCaptureNpyFloat16(FString Mode, int32 Channels, int32 Index)
 {
 	if (CaptureCameraComponents.Num() <= 0)

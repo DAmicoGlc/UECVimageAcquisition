@@ -12,6 +12,8 @@
 #include "ObjectPainter.h"
 #include "ScreenCapture.h"
 #include "Serialization.h"
+#include <chrono> 
+using namespace std::chrono; 
 
 FString GetDiskFilename(FString Filename)
 {
@@ -37,6 +39,12 @@ void FCameraCommandHandler::RegisterCommands()
 	FString Help;
 
 	//********************************************* MY COMMAND *********************************************//
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetAllCameraComponentNpyBinaryUint8(Args, TEXT("lit"), 3); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/all/lit npy", Cmd, Help);
+
+	Cmd = FDispatcherDelegate::CreateLambda([this](const TArray<FString>& Args) { return this->GetAllCameraComponentNpyBinaryUint8(Args, TEXT("normal"), 3); });
+	CommandDispatcher->BindCommand("vget /cameraComponent/[uint]/all/normal npy", Cmd, Help);
 
 	// CAMERA COMPONENTS
 	Cmd = FDispatcherDelegate::CreateRaw(this, &FCameraCommandHandler::GetCameraComponentViewMode);
@@ -772,6 +780,36 @@ FExecStatus FCameraCommandHandler::GetCameraComponentPngBinary(const TArray<FStr
 	return FExecStatus::Binary(ImgData);
 }
 
+TArray<uint8> FCameraCommandHandler::GetAllCameraComponentNpyBinaryUint8Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels)
+{
+	int32 ActorId = FCString::Atoi(*Args[0]);
+
+	UGTCaptureComponent* GTCapturer = FCaptureManager::Get().GetCamera(ActorId);
+	if (GTCapturer == nullptr)
+	{
+		return TArray<uint8>();
+	}
+
+	TArray<uint8> ImgDataList = GTCapturer->AllCameraComponentCaptureNpyUint8(ViewMode, Channels);
+
+	return ImgDataList;
+}
+
+FExecStatus FCameraCommandHandler::GetAllCameraComponentNpyBinaryUint8(const TArray<FString>& Args, const FString& ViewMode, int32 Channels)
+{
+	auto start = high_resolution_clock::now(); 
+	TArray<uint8> Data = GetAllCameraComponentNpyBinaryUint8Data(Args, ViewMode, Channels);
+	if (Data.Num() == 0) 
+	{
+		return FExecStatus::Error(FString::Printf(TEXT("Internal Error.Invalid Actor")));
+	}
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<microseconds>(stop - start);
+	float dur_time = (float)(duration.count());
+	UE_LOG(LogUnrealCV, Error, TEXT("Time Multiple microsecond %2.3f"), dur_time);
+	return FExecStatus::Binary(Data);
+}
+
 TArray<uint8> FCameraCommandHandler::GetCameraComponentNpyBinaryUint8Data(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType)
 {
 	int32 ActorId = FCString::Atoi(*Args[0]);
@@ -804,12 +842,17 @@ TArray<uint8> FCameraCommandHandler::GetCameraComponentNpyBinaryUint8Data(const 
 
 FExecStatus FCameraCommandHandler::GetCameraComponentNpyBinaryUint8(const TArray<FString>& Args, const FString& ViewMode, int32 Channels, const FString& ComponentType)
 {
+	auto start = high_resolution_clock::now();
 	int32 CameraId = FCString::Atoi(*Args[1]);
 	TArray<uint8> Data = GetCameraComponentNpyBinaryUint8Data(Args, ViewMode, Channels, ComponentType);
 	if (Data.Num() == 0) 
 	{
 		return FExecStatus::Error(FString::Printf(TEXT("Invalid Component type %s or index %d"), *ComponentType, CameraId));
 	}
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<microseconds>(stop - start);
+	float dur_time = (float)(duration.count());
+	UE_LOG(LogUnrealCV, Error, TEXT("Time Single microsecond %2.3f"), dur_time);
 	return FExecStatus::Binary(Data);
 }
 

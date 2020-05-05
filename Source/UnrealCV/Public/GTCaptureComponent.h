@@ -19,6 +19,13 @@ struct ComponentMap {
 	ComponentMap() {}
 };
 
+struct ImageStruct {
+	TArray<FColor> ImageData;
+	ImageStruct() {}
+	ImageStruct(TArray<FColor> InImage) :
+		ImageData(InImage) {}
+};
+
 /**
  * Use USceneCaptureComponent2D to export information from the scene.
  * This class needs to be tickable to update the rotation of the USceneCaptureComponent2D
@@ -32,6 +39,7 @@ private:
 
 	TArray<uint8> NpySerialization(TArray<FColor> ImageData, int32 Width, int32 Height, int32 Channel);
 	TArray<uint8> NpySerialization(TArray<FFloat16Color> ImageData, int32 Width, int32 Height, int32 Channel);
+	TArray<uint8> NpySerialization(TArray<ImageStruct> ImageDataList, int32 Width, int32 Height, int32 Channel);
 
 public:
 	AActor* Actor;
@@ -59,6 +67,7 @@ public:
 	TArray<uint8> CaptureNpyUint8(FString Mode, int32 Channels);
 	TArray<uint8> CameraComponentCaptureNpyUint8(FString Mode, int32 Channels, int32 Index);
 	TArray<uint8> CineCameraComponentCaptureNpyUint8(FString Mode, int32 Channels, int32 Index);
+	TArray<uint8> AllCameraComponentCaptureNpyUint8(FString Mode, int32 Channels);
 	
 	/** Read binary data in uncompressed numpy array */
 	TArray<uint8> CaptureNpyFloat16(FString Mode, int32 Channels);

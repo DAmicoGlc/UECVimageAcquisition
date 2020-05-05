@@ -5,6 +5,8 @@ from unrealcv.automation import UE4Binary
 from unrealcv.util import read_png, read_npy
 from unrealcv import client
 import matplotlib.pyplot as plt
+from io import BytesIO
+
 
 def getPose(index):
     command = 'vget /camera/' + str(index) + '/pose'
@@ -22,27 +24,36 @@ else:
     print ("Start: ")
     # Test connection
     res = client.request('vget /unrealcv/status')
-    print ("Status: ")
-    print (res)
-
-    res = client.request('vget /cameraComponent/0/0/normal png')
-    img_1 = read_png(res)
-
-    res = client.request('vget /cameraComponent/0/1/normal png')
-    img_2 = read_png(res)
-
-    res = client.request('vget /cameraComponent/0/2/normal png')
-    img_3 = read_png(res)
-
-    res = client.request('vget /cameraComponent/0/3/normal png')
-    img_4 = read_png(res)
+    print ("Status: " + str(res))
 
 
+
+
+
+    start_time = time.time()
+    res = client.request('vget /cameraComponent/0/all/lit npy')
+    print("--- %2.3f seconds ---" % (time.time() - start_time))
+
+    img_1 = read_npy(res)
+
+    # my_img = img_1[...,:3]
+
+    print(img_1.shape)
+
+    start_time = time.time()
+    res = client.request('vget /cameraComponent/0/0/lit npy')
+    res = client.request('vget /cameraComponent/0/1/lit npy')
+    res = client.request('vget /cameraComponent/0/2/lit npy')
+    res = client.request('vget /cameraComponent/0/3/lit npy')
+    print("--- %2.3f seconds ---" % (time.time() - start_time))
+
+    
     f, axarr = plt.subplots(2,2)
-    axarr[0,0].imshow(img_1)
-    axarr[0,1].imshow(img_2)
-    axarr[1,0].imshow(img_3)
-    axarr[1,1].imshow(img_4)
+    #axarr.imshow(img_1)
+    axarr[0,0].imshow(img_1[0])
+    axarr[0,1].imshow(img_1[1])
+    axarr[1,0].imshow(img_1[2])
+    axarr[1,1].imshow(img_1[3])
 
     plt.show()
 
@@ -76,7 +87,7 @@ else:
     #    print(res)
 
     #    if res == 'ok':
-    #        res = client.request('vget /camera/1/normal image' + str(i) + '.png')
+    #        res = client.request('vget /camera/1/lit image' + str(i) + '.png')
     #    else:
     #        print("Error: " + str(res))
     #        break
